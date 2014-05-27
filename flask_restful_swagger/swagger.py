@@ -19,6 +19,8 @@ def docs(api, apiVersion='0.0', swaggerVersion='1.2',
   api_add_resource = api.add_resource
 
   def add_resource(resource, path, *args, **kvargs):
+    register_once(api_add_resource, apiVersion, swaggerVersion, basePath,
+                  resourcePath, produces, api_spec_url)
     endpoint = swagger_endpoint(resource, path)
     # Add a .help.json help url
     swagger_path = extract_swagger_path(path)
@@ -29,8 +31,6 @@ def docs(api, apiVersion='0.0', swaggerVersion='1.2',
     endpoint_path = "%s_help_html" % resource.__name__
     api_add_resource(endpoint, "%s.help.html" % swagger_path,
                      endpoint=endpoint_path)
-    register_once(api_add_resource, apiVersion, swaggerVersion, basePath,
-                  resourcePath, produces, api_spec_url)
     return api_add_resource(resource, path, *args, **kvargs)
   api.add_resource = add_resource
 
@@ -56,6 +56,8 @@ def register_once(add_resource_func, apiVersion, swaggerVersion, basePath,
     add_resource_func(SwaggerRegistry, ep, endpoint=ep)
     resource_listing_endpoint = endpoint + '/_/resource_list.json'
     add_resource_func(ResourceLister, resource_listing_endpoint, endpoint=resource_listing_endpoint)
+    if resourcePath != "/":
+      resource_listing_endpoint = resourcePath + resource_listing_endpoint 
 
 
 class ResourceLister(Resource):
@@ -87,7 +89,10 @@ def swagger_endpoint(resource, path):
 
 class SwaggerEndpoint(object):
   def __init__(self, resource, path):
-    self.path = extract_swagger_path(path)
+    if registry['resourcePath'] == "/":
+      self.path = extract_swagger_path(path)
+    else:
+      self.path = registry['resourcePath'] + extract_swagger_path(path)
     path_arguments = extract_path_arguments(path)
     self.description = inspect.getdoc(resource)
     self.operations = self.extract_operations(resource, path_arguments)
